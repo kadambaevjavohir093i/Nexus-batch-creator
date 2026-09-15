@@ -32,6 +32,7 @@ interface AnthropicConfig {
   apiKey: string;
   model: string;
   baseURL?: string;
+  workspaceId?: string;
   effort: Effort;
 }
 
@@ -46,6 +47,9 @@ const getAnthropicConfig = (): AnthropicConfig => {
     apiKey: clean(process.env.ANTHROPIC_API_KEY),
     model: clean(process.env.ANTHROPIC_MODEL) || DEFAULT_MODEL,
     baseURL: clean(process.env.ANTHROPIC_BASE_URL) || undefined,
+    // Org-level keys are not tied to a workspace and must name one per request.
+    // Keys created inside a workspace carry it already and need nothing here.
+    workspaceId: clean(process.env.ANTHROPIC_WORKSPACE_ID) || undefined,
     effort: (VALID_EFFORTS as readonly string[]).includes(effort)
       ? (effort as Effort)
       : "medium",
@@ -55,12 +59,15 @@ const getAnthropicConfig = (): AnthropicConfig => {
 let cachedClient: { key: string; client: Anthropic } | null = null;
 
 const getAnthropicClient = (config: AnthropicConfig): Anthropic => {
-  const cacheKey = `${config.apiKey}::${config.baseURL || ""}`;
+  const cacheKey = `${config.apiKey}::${config.baseURL || ""}::${config.workspaceId || ""}`;
   if (cachedClient && cachedClient.key === cacheKey) return cachedClient.client;
 
   const client = new Anthropic({
     apiKey: config.apiKey,
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+    ...(config.workspaceId
+      ? { defaultHeaders: { "anthropic-workspace-id": config.workspaceId } }
+      : {}),
     // Extraction with reasoning can take a while on a dense multi-page invoice.
     timeout: 120_000,
     maxRetries: 2,
@@ -997,7 +1004,10 @@ app.post("/api/extract", async (req: any, res: any) => {
     const status = error?.status ?? error?.statusCode;
     let errorMessage = error?.message || "Failed to extract info from PDF";
 
-    if (status === 401) {
+    if (/not scoped to a workspace/i.test(errorMessage)) {
+      errorMessage =
+        "This Anthropic key is org-level and is not scoped to a workspace. Either create a key inside a workspace, or set ANTHROPIC_WORKSPACE_ID in your .env file.";
+    } else if (status === 401) {
       errorMessage =
         "Anthropic rejected the API key (401). Check ANTHROPIC_API_KEY in your .env file.";
     } else if (status === 429 || isCreditError(error)) {

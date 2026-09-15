@@ -53,6 +53,7 @@ Everything is read from `.env` (never hardcoded, never committed):
 | `ANTHROPIC_API_KEY` | yes | — | Your key from the Anthropic Console. |
 | `ANTHROPIC_MODEL` | no | `claude-opus-5` | `claude-sonnet-5` is cheaper and faster; `claude-haiku-4-5` cheapest. |
 | `ANTHROPIC_EFFORT` | no | `medium` | Reasoning depth: `low`, `medium`, `high`, `xhigh`, `max`. Raise it for messy scans. |
+| `ANTHROPIC_WORKSPACE_ID` | only for org-level keys | — | A key created inside a workspace carries its scope already. An org-level key must name a workspace on every request, or the API returns "not scoped to a workspace". |
 | `ANTHROPIC_BASE_URL` | no | — | Only for a proxy or gateway. |
 | `PORT` | no | `3000` | |
 | `VITE_FIREBASE_*` | no | — | Enables the Google Drive tab. Left blank, the tab explains it is switched off and local upload works regardless. |
